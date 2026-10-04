@@ -1,0 +1,83 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Deriv Signal Lab</title><style>
+*{box-sizing:border-box}body{font-family:Inter,system-ui,sans-serif;background:#07101d;color:#edf3fb;margin:0}.wrap{max-width:1500px;margin:auto;padding:24px}.top,.controls,.tabs{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}.card{background:#101b2c;border:1px solid #26364d;border-radius:16px;padding:16px;margin:14px 0}select,button,input{padding:10px 12px;border-radius:9px;border:1px solid #3b4a61;background:#17243a;color:white}button{cursor:pointer;font-weight:700}.muted{color:#9fb0c6}.err{color:#ff9c9c}.tablewrap{overflow:auto;border-radius:14px;border:1px solid #26364d}table{width:100%;border-collapse:collapse;min-width:1050px;background:#0d1828}th,td{text-align:left;padding:12px;border-bottom:1px solid #223149}th{position:sticky;top:0;background:#142136;z-index:1;font-size:12px;text-transform:uppercase;color:#aebdd0}.signal{font-weight:900;padding:6px 10px;border-radius:999px;display:inline-block}.BUY{background:#123b31;color:#7ce0b8}.SELL{background:#44252c;color:#ff9aa8}.WAIT{background:#3c3622;color:#f1d87c}.timer{font-variant-numeric:tabular-nums;font-weight:800}.market{font-size:12px;color:#91a4bb}.summary{display:grid;grid-template-columns:repeat(4,minmax(130px,1fr));gap:10px}.metric{background:#0c1626;padding:14px;border-radius:12px}.metric b{font-size:22px}.tab{opacity:.65}.tab.active{opacity:1;border-color:#edf3fb}.digitgrid{display:grid;grid-template-columns:repeat(10,minmax(52px,1fr));gap:5px;min-width:620px}.digit{padding:7px 4px;text-align:center;background:#17243a;border-radius:8px;font-size:11px}.digit b{display:block;font-size:14px}.digit.best{outline:2px solid #edf3fb;background:#26354c}.rec{font-size:24px;font-weight:900}.pending{color:#9fb0c6;font-style:italic}.stale{opacity:.7}.warn{color:#f1d87c}@media(max-width:700px){.summary{grid-template-columns:repeat(2,1fr)}.wrap{padding:14px}}
+</style></head><body><div class="wrap"><div class="top"><div><h1>Deriv Signal Lab</h1><div class="muted">Directional signals + experimental Digit Matches analytics</div></div><div id="status" class="muted"></div></div>
+<div class="tabs"><div><button id="signalTab" class="tab active" onclick="mode='signals';setTabs()">Market Signals</button> <button id="digitTab" class="tab" onclick="mode='digits';setTabs()">Digit Matches</button></div><input id="filter" placeholder="Filter market or symbol"></div>
+<div id="signalControls" class="card controls"><label>Prediction window <select id="tf"><option value="60">1 minute</option><option value="300" selected>5 minutes</option><option value="900">15 minutes</option><option value="1800">30 minutes</option><option value="3600">1 hour</option></select></label><button onclick="refreshAll()">Refresh</button><label><input id="auto" type="checkbox" checked> Auto refresh</label></div>
+<div id="digitControls" class="card controls" style="display:none"><label>Tick sample <select id="sample"><option>250</option><option selected>1000</option><option>2500</option><option>5000</option></select></label><button onclick="refreshAll()">Refresh digit predictions</button><span class="muted">Each digit probability is estimated from recent tick endings.</span></div>
+<div id="summary" class="summary"></div><div id="error"></div><div class="tablewrap"><table><thead id="head"></thead><tbody id="rows"></tbody></table></div><p id="notice" class="muted"></p></div>
+<script>
+/* ---- Rate-limit-safe scheduler ----
+   Deriv allows 220 calls/min for this API group. This page never asks for more than
+   MAX_PER_MIN symbols a minute, in small batches, pauses on any rate-limit reply,
+   slows down after one, and stops while the tab is hidden. */
+const MAX_PER_MIN=40, MIN_PER_MIN=10, BATCH=8, MIN_GAP_MS=12000, DIGIT_TTL_MS=120000;
+let mode='signals',symbols=[],symbolsAt=0,perMin=MAX_PER_MIN,pausedUntil=0,lastLimitAt=0,lastBatchAt=0,inflight=false,sent=[],tickTimer=null,lastError='';
+const statusEl=document.getElementById('status');
+const store={signals:{},digits:{}};           // symbol -> row (+ _at fetch time)
+const paramKey={signals:null,digits:null};
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function curParam(){return mode==='signals'?tf.value:sample.value}
+function setTabs(){signalTab.classList.toggle('active',mode==='signals');digitTab.classList.toggle('active',mode==='digits');signalControls.style.display=mode==='signals'?'flex':'none';digitControls.style.display=mode==='digits'?'flex':'none';checkParam();render();lastBatchAt=0}
+function checkParam(){if(paramKey[mode]!==curParam()){store[mode]={};paramKey[mode]=curParam()}}
+function refreshAll(){Object.values(store[mode]).forEach(r=>r._at=0);lastBatchAt=0;render()}
+function fmt(n){return Math.max(0,n).toFixed(1)+'s'}
+function matches(m){let q=filter.value.toLowerCase();return !q||(`${m.name} ${m.symbol} ${m.market}`).toLowerCase().includes(q)}
+function isDue(sym,now){const r=store[mode][sym];if(!r||r.deferred||!r._at)return true;
+  if(mode==='signals'){if(r.error)return now-r._at>60000;return auto.checked&&r.valid_until&&r.valid_until*1000<=now}
+  return now-r._at>DIGIT_TTL_MS}
+function usedLastMin(now){sent=sent.filter(t=>now-t<60000);return sent.length}
+async function loadSymbols(){try{let r=await fetch('/api/symbols'),d=await r.json();if(!r.ok)throw Error(d.detail||'Could not load symbols');symbols=d;symbolsAt=Date.now();lastError='';render()}catch(e){lastError=e.message;pausedUntil=Date.now()+30000;showStatus()}}
+async function step(){
+  const now=Date.now();
+  if(perMin<MAX_PER_MIN&&now-lastLimitAt>120000){perMin=Math.min(MAX_PER_MIN,perMin+5);lastLimitAt=now-60000}
+  if(document.hidden||inflight||now<pausedUntil){showStatus();return}
+  if(!symbols.length||now-symbolsAt>1800000){if(!inflight){inflight=true;await loadSymbols();inflight=false}return}
+  checkParam();
+  if(now-lastBatchAt<MIN_GAP_MS){showStatus();return}
+  const budget=perMin-usedLastMin(now);if(budget<1){showStatus();return}
+  // visible (filtered) markets first, never-loaded before stale
+  const due=symbols.filter(m=>isDue(m.symbol,now)).sort((a,b)=>(matches(b)-matches(a))||((store[mode][a.symbol]?1:0)-(store[mode][b.symbol]?1:0)));
+  if(!due.length){showStatus();return}
+  const pick=due.slice(0,Math.min(BATCH,budget)).map(m=>m.symbol),m=mode,param=curParam();
+  inflight=true;lastBatchAt=now;
+  try{
+    const url=m==='signals'?`/api/market-board?granularity=${param}&symbols=${encodeURIComponent(pick.join(','))}`:`/api/digit-board?count=${param}&symbols=${encodeURIComponent(pick.join(','))}`;
+    let r=await fetch(url),txt=await r.text(),d;try{d=JSON.parse(txt)}catch(_){throw Error(`Server error ${r.status}: ${txt.slice(0,160)}`)}
+    if(!r.ok)throw Error(d.detail||`Request failed (${r.status})`);
+    for(let i=0;i<(d.deriv_calls||0);i++)sent.push(now);
+    if(m===mode&&param===curParam()){for(const row of d.markets||[]){
+      const old=store[m][row.symbol];
+      if(row.deferred){if(old){old._at=0;old._stale=true}else store[m][row.symbol]={...row,_at:0}}
+      else store[m][row.symbol]={...row,_at:Date.now()}}}
+    if(d.rate_limited){pausedUntil=Date.now()+Math.max(60,d.retry_after||60)*1000;perMin=Math.max(MIN_PER_MIN,Math.floor(perMin/2));lastLimitAt=Date.now()}
+    lastError='';
+  }catch(e){lastError=e.message;pausedUntil=Date.now()+30000}
+  finally{inflight=false;render()}
+}
+function showStatus(){const now=Date.now(),total=symbols.length,rows=store[mode],done=symbols.filter(m=>rows[m.symbol]&&!rows[m.symbol].deferred).length;
+  let t=`${done}/${total} markets loaded · pace ${perMin}/min`;
+  if(document.hidden)t+=' · paused (tab hidden)';
+  else if(now<pausedUntil)t+=` · <span class="warn">Deriv rate limit protection: resuming in ${Math.ceil((pausedUntil-now)/1000)}s (last results kept)</span>`;
+  else if(inflight)t+=' · updating…';
+  statusEl.innerHTML=t;error.innerHTML=lastError?`<div class="card err">${esc(lastError)}</div>`:''}
+function rowsFor(){return symbols.filter(matches).map(m=>store[mode][m.symbol]||{...m,_pending:true})}
+function render(){if(mode==='signals')renderSignals();else renderDigits();showStatus()}
+const pend=(x,cols)=>`<tr class="pending"><td><b>${esc(x.name||x.symbol)}</b><div class="market">${esc(x.market||'')}</div></td><td>${esc(x.symbol)}</td><td colspan="${cols}">${x.deferred?'Waiting for rate-limit budget…':'Queued…'}</td></tr>`;
+function renderSignals(){head.innerHTML='<tr><th>Market</th><th>Symbol</th><th>Prediction</th><th>Confidence</th><th>Probability Up</th><th>Price</th><th>Valid For</th><th>Valid Until</th></tr>';
+  const order={BUY:0,SELL:1,WAIT:2,'N/A':3};const data=rowsFor().sort((a,b)=>(!!(a._pending||a.deferred)-!!(b._pending||b.deferred))||((order[a.signal]??4)-(order[b.signal]??4))||((b.confidence||0)-(a.confidence||0)));
+  rows.innerHTML=data.map(x=>{if(x._pending||x.deferred)return pend(x,6);if(x.error)return `<tr><td><b>${esc(x.name||x.symbol)}</b></td><td>${esc(x.symbol)}</td><td colspan="6" class="err">${esc(x.error)}</td></tr>`;
+  return `<tr class="${x._stale?'stale':''}"><td><b>${esc(x.name||x.symbol)}</b><div class="market">${esc(x.market||'')}</div></td><td>${esc(x.symbol)}</td><td><span class="signal ${x.signal}">${esc(x.signal)}</span></td><td>${x.confidence!=null?(x.confidence*100).toFixed(1)+'%':'—'}</td><td>${x.probability_up!=null?(x.probability_up*100).toFixed(1)+'%':'—'}</td><td>${esc(x.price??'—')}</td><td class="timer" data-until="${x.valid_until||0}">—</td><td>${x.valid_until?new Date(x.valid_until*1000).toLocaleTimeString():'—'}</td></tr>`}).join('');
+  const all=Object.values(store.signals),c=k=>all.filter(x=>x.signal===k).length;
+  summary.innerHTML=`<div class="metric">Markets<br><b>${symbols.length}</b></div><div class="metric">BUY<br><b>${c('BUY')}</b></div><div class="metric">SELL<br><b>${c('SELL')}</b></div><div class="metric">WAIT<br><b>${c('WAIT')}</b></div>`;
+  notice.textContent='Markets load a few at a time to stay inside Deriv API rate limits. Validity is the selected candle window, not a guarantee of when price will move.'}
+function renderDigits(){head.innerHTML='<tr><th>Market</th><th>Symbol</th><th>Opportunity</th><th>Recommended digit</th><th>Digit probabilities 0–9</th><th>Backtest</th><th>Last digit</th><th>Est. next tick</th></tr>';
+  const data=rowsFor().sort((a,b)=>(!!(a._pending||a.deferred)-!!(b._pending||b.deferred))||((b.opportunity?1:0)-(a.opportunity?1:0))||((b.edge||0)-(a.edge||0)));
+  rows.innerHTML=data.map(x=>{if(x._pending||x.deferred)return pend(x,6);if(x.error)return `<tr><td>${esc(x.name)}</td><td>${esc(x.symbol)}</td><td colspan="6" class="err">${esc(x.error)}</td></tr>`;let best=x.recommended_digit;let dg=x.probabilities.map((p,i)=>`<div class="digit ${i===best?'best':''}"><b>${i}</b>${(p*100).toFixed(1)}%</div>`).join('');let bt=x.backtest||{};let badge=x.opportunity?'MATCH':'SKIP';return `<tr class="${x._stale?'stale':''}"><td><b>${esc(x.name||x.symbol)}</b><div class="market">${esc(x.market||'')}</div></td><td>${esc(x.symbol)}</td><td><span class="signal ${x.opportunity?'BUY':'WAIT'}">${badge}</span><div class="market">${esc(x.strength||'')}</div></td><td><span class="rec">${best}</span><div>${(x.probabilities[best]*100).toFixed(1)}% · edge ${(x.edge*100).toFixed(1)}pp</div></td><td><div class="digitgrid">${dg}</div></td><td>${bt.accuracy!=null?(bt.accuracy*100).toFixed(1)+'% ('+bt.hits+'/'+bt.trials+')':'—'}<div class="market">random baseline 10%</div></td><td>${x.last_digit??'—'}</td><td class="timer" data-next="${x.next_tick_estimate||0}">—</td></tr>`}).join('');
+  const ok=Object.values(store.digits).filter(x=>!x.error&&!x.deferred),opp=ok.filter(x=>x.opportunity),avg=ok.length?ok.reduce((a,x)=>a+((x.backtest||{}).accuracy||0),0)/ok.length:0;
+  summary.innerHTML=`<div class="metric">Markets<br><b>${symbols.length}</b></div><div class="metric">MATCH opportunities<br><b>${opp.length}</b></div><div class="metric">Tick sample<br><b>${sample.value}</b></div><div class="metric">Avg backtest accuracy<br><b>${(avg*100).toFixed(1)}%</b></div>`;
+  notice.textContent='Markets load a few at a time to stay inside Deriv API rate limits; each digit row refreshes about every 2 minutes. MATCH is gated by probability separation plus walk-forward historical accuracy. A random 0–9 digit baseline is 10%; past accuracy does not guarantee the next digit.'}
+function ticks(){clearInterval(tickTimer);tickTimer=setInterval(()=>{let now=Date.now()/1000;document.querySelectorAll('[data-until]').forEach(e=>{if(!+e.dataset.until){e.textContent='—';return}let r=+e.dataset.until-now;e.textContent=r>0?Math.floor(r/60)+':'+String(Math.floor(r%60)).padStart(2,'0'):'refreshing'});document.querySelectorAll('[data-next]').forEach(e=>{e.textContent=fmt(+e.dataset.next-now)})},250)}
+filter.addEventListener('input',render);tf.addEventListener('change',()=>{checkParam();render();lastBatchAt=0});sample.addEventListener('change',()=>{checkParam();render();lastBatchAt=0});
+document.addEventListener('visibilitychange',showStatus);
+ticks();setTabs();setInterval(step,1000);step();
+</script></body></html>
