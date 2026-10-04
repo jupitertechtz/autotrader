@@ -2,7 +2,9 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
 from pathlib import Path
-import asyncio, json, math, os, time
+import asyncio, json, math, os, re, time
+import urllib.request, urllib.error
+from pydantic import BaseModel
 from collections import deque
 import numpy as np
 import pandas as pd
@@ -303,11 +305,11 @@ def _pick_symbols(all_syms, symbols):
         return [by.get(x, {"symbol": x, "name": x, "market": "Other", "submarket": None}) for x in wanted][:MAX_BATCH]
     return all_syms[:MAX_BATCH]
 
-async def _board(kind, metas, param, payload_fn, compute_fn, ttl_fn):
+async def _board(kind, metas, param, payload_fn, compute_fn, ttl_fn, fresh=False):
     now = time.time()
     rows, todo = {}, []
     for meta in metas:
-        hit = _row_cache.get((kind, meta["symbol"], param))
+        hit = None if fresh else _row_cache.get((kind, meta["symbol"], param))
         if hit and hit[0] > now: rows[meta["symbol"]] = hit[1]
         else: todo.append(meta)
     raw = await rpc_batch([payload_fn(m["symbol"]) for m in todo]) if todo else []
@@ -346,12 +348,13 @@ async def market_board(granularity: int = 300, symbols: str = ""):
     return res
 
 @app.get("/api/digit-board")
-async def digit_board(count: int = 1000, symbols: str = ""):
+async def digit_board(count: int = 1000, symbols: str = "", fresh: int = 0):
     metas = _pick_symbols(await active_symbols(), symbols)
     return await _board("db", metas, count,
                         lambda s: ticks_payload(s, count),
                         digit_data,
-                        lambda d: time.time() + 45)             # digit stats reused for 45s
+                        lambda d: time.time() + 45,             # digit stats reused for 45s
+                        fresh=bool(fresh))                      # fresh=1: recompute right before a bulk trade
 
 @app.get("/api/limits")
 async def limits():
@@ -359,3 +362,43 @@ async def limits():
     while _calls and now - _calls[0] > 60: _calls.popleft()
     return {"max_calls_per_min": MAX_CALLS_PER_MIN, "used_last_minute": len(_calls),
             "cooldown_seconds": round(cooldown_left()), "max_batch": MAX_BATCH}
+
+# ---------- trading relay (only used if the browser cannot call Deriv REST directly) ----------
+# The token is forwarded to Deriv for this single request and is never stored or logged.
+DERIV_REST = "https://api.derivws.com"
+
+class TradeAuth(BaseModel):
+    token: str
+    app_id: str
+    account_id: str | None = None
+
+def _deriv_rest(method, path, token, app_id):
+    req = urllib.request.Request(DERIV_REST + path, method=method, data=b"{}" if method == "POST" else None,
+                                 headers={"Authorization": f"Bearer {token}", "Deriv-App-ID": app_id,
+                                          "Content-Type": "application/json", "Accept": "application/json"})
+    try:
+        with urllib.request.urlopen(req, timeout=15) as r:
+            return r.status, json.loads(r.read() or b"{}")
+    except urllib.error.HTTPError as e:
+        raw = e.read()
+        try: data = json.loads(raw or b"{}")
+        except Exception: data = {"detail": raw.decode("utf-8", "replace")[:300] or f"HTTP {e.code}"}
+        return e.code, data
+
+def _check(auth: TradeAuth):
+    if not auth.token.strip() or not re.fullmatch(r"[\w-]{1,40}", auth.app_id.strip()):
+        raise HTTPException(400, "A token and a valid App ID are required")
+
+@app.post("/api/trade/accounts")
+async def trade_accounts(auth: TradeAuth):
+    _check(auth)
+    code, data = await asyncio.to_thread(_deriv_rest, "GET", "/trading/v1/options/accounts", auth.token.strip(), auth.app_id.strip())
+    return JSONResponse(status_code=code, content=data, headers={"Cache-Control": "no-store"})
+
+@app.post("/api/trade/otp")
+async def trade_otp(auth: TradeAuth):
+    _check(auth)
+    if not auth.account_id or not re.fullmatch(r"\w{1,40}", auth.account_id):
+        raise HTTPException(400, "Invalid account id")
+    code, data = await asyncio.to_thread(_deriv_rest, "POST", f"/trading/v1/options/accounts/{auth.account_id}/otp", auth.token.strip(), auth.app_id.strip())
+    return JSONResponse(status_code=code, content=data, headers={"Cache-Control": "no-store"})

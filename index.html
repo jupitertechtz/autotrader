@@ -1,9 +1,28 @@
 <!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Deriv Signal Lab</title><style>
-*{box-sizing:border-box}body{font-family:Inter,system-ui,sans-serif;background:#07101d;color:#edf3fb;margin:0}.wrap{max-width:1500px;margin:auto;padding:24px}.top,.controls,.tabs{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}.card{background:#101b2c;border:1px solid #26364d;border-radius:16px;padding:16px;margin:14px 0}select,button,input{padding:10px 12px;border-radius:9px;border:1px solid #3b4a61;background:#17243a;color:white}button{cursor:pointer;font-weight:700}.muted{color:#9fb0c6}.err{color:#ff9c9c}.tablewrap{overflow:auto;border-radius:14px;border:1px solid #26364d}table{width:100%;border-collapse:collapse;min-width:1050px;background:#0d1828}th,td{text-align:left;padding:12px;border-bottom:1px solid #223149}th{position:sticky;top:0;background:#142136;z-index:1;font-size:12px;text-transform:uppercase;color:#aebdd0}.signal{font-weight:900;padding:6px 10px;border-radius:999px;display:inline-block}.BUY{background:#123b31;color:#7ce0b8}.SELL{background:#44252c;color:#ff9aa8}.WAIT{background:#3c3622;color:#f1d87c}.timer{font-variant-numeric:tabular-nums;font-weight:800}.market{font-size:12px;color:#91a4bb}.summary{display:grid;grid-template-columns:repeat(4,minmax(130px,1fr));gap:10px}.metric{background:#0c1626;padding:14px;border-radius:12px}.metric b{font-size:22px}.tab{opacity:.65}.tab.active{opacity:1;border-color:#edf3fb}.digitgrid{display:grid;grid-template-columns:repeat(10,minmax(52px,1fr));gap:5px;min-width:620px}.digit{padding:7px 4px;text-align:center;background:#17243a;border-radius:8px;font-size:11px}.digit b{display:block;font-size:14px}.digit.best{outline:2px solid #edf3fb;background:#26354c}.rec{font-size:24px;font-weight:900}.pending{color:#9fb0c6;font-style:italic}.stale{opacity:.7}.warn{color:#f1d87c}@media(max-width:700px){.summary{grid-template-columns:repeat(2,1fr)}.wrap{padding:14px}}
+*{box-sizing:border-box}body{font-family:Inter,system-ui,sans-serif;background:#07101d;color:#edf3fb;margin:0}.wrap{max-width:1500px;margin:auto;padding:24px}.top,.controls,.tabs{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}.card{background:#101b2c;border:1px solid #26364d;border-radius:16px;padding:16px;margin:14px 0}select,button,input{padding:10px 12px;border-radius:9px;border:1px solid #3b4a61;background:#17243a;color:white}button{cursor:pointer;font-weight:700}.muted{color:#9fb0c6}.err{color:#ff9c9c}.tablewrap{overflow:auto;border-radius:14px;border:1px solid #26364d}table{width:100%;border-collapse:collapse;min-width:1050px;background:#0d1828}th,td{text-align:left;padding:12px;border-bottom:1px solid #223149}th{position:sticky;top:0;background:#142136;z-index:1;font-size:12px;text-transform:uppercase;color:#aebdd0}.signal{font-weight:900;padding:6px 10px;border-radius:999px;display:inline-block}.BUY{background:#123b31;color:#7ce0b8}.SELL{background:#44252c;color:#ff9aa8}.WAIT{background:#3c3622;color:#f1d87c}.timer{font-variant-numeric:tabular-nums;font-weight:800}.market{font-size:12px;color:#91a4bb}.summary{display:grid;grid-template-columns:repeat(4,minmax(130px,1fr));gap:10px}.metric{background:#0c1626;padding:14px;border-radius:12px}.metric b{font-size:22px}.tab{opacity:.65}.tab.active{opacity:1;border-color:#edf3fb}.digitgrid{display:grid;grid-template-columns:repeat(10,minmax(52px,1fr));gap:5px;min-width:620px}.digit{padding:7px 4px;text-align:center;background:#17243a;border-radius:8px;font-size:11px}.digit b{display:block;font-size:14px}.digit.best{outline:2px solid #edf3fb;background:#26354c}.rec{font-size:24px;font-weight:900}.pending{color:#9fb0c6;font-style:italic}.stale{opacity:.7}.warn{color:#f1d87c}.tp-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;align-items:end}.tp-grid label{display:flex;flex-direction:column;gap:5px;font-size:13px;color:#aebdd0}.tp-grid input,.tp-grid select{width:100%}.acct{display:flex;gap:8px;flex-wrap:wrap}.acct label{display:flex;gap:6px;align-items:center;padding:8px 12px;border:1px solid #3b4a61;border-radius:9px;cursor:pointer}.realwarn{background:#44252c;border:1px solid #ff9aa8;color:#ffd0d7;border-radius:10px;padding:10px 12px;margin-top:10px}.go{background:#123b31;border-color:#7ce0b8;color:#7ce0b8}.stop{background:#44252c;border-color:#ff9aa8;color:#ff9aa8}.won{color:#7ce0b8;font-weight:800}.lost{color:#ff9aa8;font-weight:800}.badge{display:inline-block;padding:3px 9px;border-radius:999px;font-size:12px;font-weight:800}.badge.demo{background:#123b31;color:#7ce0b8}.badge.real{background:#44252c;color:#ff9aa8}.tp-trades{max-height:340px;overflow:auto;margin-top:10px;border-radius:10px;border:1px solid #26364d}.tp-trades table{min-width:760px}h3{margin:0 0 10px}@media(max-width:700px){.summary{grid-template-columns:repeat(2,1fr)}.wrap{padding:14px}}
 </style></head><body><div class="wrap"><div class="top"><div><h1>Deriv Signal Lab</h1><div class="muted">Directional signals + experimental Digit Matches analytics</div></div><div id="status" class="muted"></div></div>
 <div class="tabs"><div><button id="signalTab" class="tab active" onclick="mode='signals';setTabs()">Market Signals</button> <button id="digitTab" class="tab" onclick="mode='digits';setTabs()">Digit Matches</button></div><input id="filter" placeholder="Filter market or symbol"></div>
 <div id="signalControls" class="card controls"><label>Prediction window <select id="tf"><option value="60">1 minute</option><option value="300" selected>5 minutes</option><option value="900">15 minutes</option><option value="1800">30 minutes</option><option value="3600">1 hour</option></select></label><button onclick="refreshAll()">Refresh</button><label><input id="auto" type="checkbox" checked> Auto refresh</label></div>
 <div id="digitControls" class="card controls" style="display:none"><label>Tick sample <select id="sample"><option>250</option><option selected>1000</option><option>2500</option><option>5000</option></select></label><button onclick="refreshAll()">Refresh digit predictions</button><span class="muted">Each digit probability is estimated from recent tick endings.</span></div>
+<div id="tradePanel" class="card" style="display:none"><h3>Bulk Matches trading</h3>
+<div class="muted" style="margin-bottom:10px">Places several Digit Matches contracts at the same moment, one per top-ranked synthetic market, each on that market's freshly recalculated predicted digit. Each round waits for every contract to settle before the next starts.</div>
+<div class="tp-grid"><label>Deriv App ID<input id="tpApp" autocomplete="off" placeholder="from developers.deriv.com"></label><label>Personal Access Token (trade scope)<input id="tpTok" type="password" autocomplete="off" placeholder="kept in this tab's memory only"></label>
+<div class="acct"><label><input type="radio" name="tpType" value="demo" checked> Demo</label><label><input type="radio" name="tpType" value="real"> Real</label></div>
+<div><button id="tpConn" onclick="tpConnect()">Connect</button> <button onclick="tpDisconnect()">Disconnect</button></div></div>
+<div id="tpRealWarn" class="realwarn" style="display:none"><b>Real money.</b> Each trade can lose its full stake. Digit outcomes on synthetic indices are random, so predictions do not give a reliable edge. <label style="display:inline-flex;gap:6px;margin-left:6px"><input type="checkbox" id="tpAck"> I understand and accept the risk</label></div>
+<div id="tpAcct" class="muted" style="margin:10px 0">Not connected.</div>
+<div class="tp-grid"><label>Number of bulk trades<select id="tpN"><option>1</option><option>2</option><option selected>3</option><option>4</option><option>5</option><option>6</option><option>8</option><option>10</option></select></label>
+<label>Stake per trade<input id="tpStake" type="number" min="0.35" step="0.01" value="0.50"></label>
+<label>Duration (ticks)<select id="tpTicks"><option selected>1</option><option>2</option><option>3</option><option>5</option><option>10</option></select></label>
+<label>Rounds<select id="tpRounds"><option value="1" selected>1 (single bulk buy)</option><option>3</option><option>5</option><option>10</option><option>25</option></select></label>
+<label>Pause between rounds (s)<input id="tpGap" type="number" min="3" value="5"></label>
+<label>Markets<select id="tpOnly"><option value="all">Top markets by edge</option><option value="match">Only MATCH-flagged markets</option></select></label></div>
+<div class="tp-grid" style="margin-top:10px"><label>Max stake per trade<input id="tpMax" type="number" min="0.35" step="0.01" value="5"></label>
+<label>Daily loss limit<input id="tpLoss" type="number" min="1" step="1" value="20"></label>
+<div><button id="tpGo" class="go" onclick="tpStart()">Place bulk trades</button> <button class="stop" onclick="tpStop()">Stop</button></div></div>
+<div id="tpMsg" class="muted" style="margin-top:10px"></div>
+<div id="tpSum" class="summary" style="margin-top:10px"></div>
+<div class="tp-trades"><table><thead><tr><th>Time</th><th>Market</th><th>Digit</th><th>Stake</th><th>Payout</th><th>Result</th><th>Profit</th></tr></thead><tbody id="tpRows"></tbody></table></div></div>
 <div id="summary" class="summary"></div><div id="error"></div><div class="tablewrap"><table><thead id="head"></thead><tbody id="rows"></tbody></table></div><p id="notice" class="muted"></p></div>
 <script>
 /* ---- Rate-limit-safe scheduler ----
@@ -80,4 +99,120 @@ function ticks(){clearInterval(tickTimer);tickTimer=setInterval(()=>{let now=Dat
 filter.addEventListener('input',render);tf.addEventListener('change',()=>{checkParam();render();lastBatchAt=0});sample.addEventListener('change',()=>{checkParam();render();lastBatchAt=0});
 document.addEventListener('visibilitychange',showStatus);
 ticks();setTabs();setInterval(step,1000);step();
+</script>
+<script>
+/* ---- Bulk Digit Matches trading (Deriv Options API: PAT -> OTP WebSocket -> buy DIGITMATCH) ----
+   Token is held in memory only. Demo is the default account. */
+const API='https://api.derivws.com';
+const T={token:'',appId:'',accounts:[],acct:null,ws:null,reqId:1,pending:new Map(),watch:new Map(),running:false,stop:false,trades:[],sess:{n:0,won:0,lost:0,pl:0}};
+try{tpApp.value=localStorage.getItem('dsl:appId')||''}catch(_){}
+const _baseSetTabs=setTabs;setTabs=function(){_baseSetTabs();tradePanel.style.display=mode==='digits'?'block':'none'};
+document.querySelectorAll('input[name=tpType]').forEach(r=>r.addEventListener('change',()=>{tpRealWarn.style.display=tpType()==='real'?'block':'none';if(T.accounts.length)tpPickAccount()}));
+function tpType(){return document.querySelector('input[name=tpType]:checked').value}
+function tpSay(t,cls=''){tpMsg.className=cls||'muted';tpMsg.innerHTML=t}
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+function apiErr(d,status){const m=(d&&((d.errors&&d.errors[0]&&(d.errors[0].message||d.errors[0].detail))||(d.error&&(d.error.message||d.error))||d.message||d.detail))||`HTTP ${status}`;const e=Error(typeof m==='string'?m:JSON.stringify(m));e.api=true;return e}
+async function derivRest(method,path,proxy,accountId){
+  try{const r=await fetch(API+path,{method,headers:{'Authorization':'Bearer '+T.token,'Deriv-App-ID':T.appId,'Content-Type':'application/json'},body:method==='POST'?'{}':undefined});
+      const d=await r.json().catch(()=>({}));if(!r.ok)throw apiErr(d,r.status);return d}
+  catch(e){if(e.api)throw e; // browser blocked the direct call (CORS/network): use this app's relay, which does not store the token
+      const r=await fetch(proxy,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:T.token,app_id:T.appId,account_id:accountId||null})});
+      const d=await r.json().catch(()=>({}));if(!r.ok)throw apiErr(d,r.status);return d}}
+async function tpConnect(){
+  T.token=tpTok.value.trim();T.appId=tpApp.value.trim();
+  if(!T.token||!T.appId){tpSay('Enter your Deriv App ID and a Personal Access Token with the <b>trade</b> scope (create both at developers.deriv.com).','err');return}
+  try{localStorage.setItem('dsl:appId',T.appId)}catch(_){}
+  tpSay('Connecting…');
+  try{const d=await derivRest('GET','/trading/v1/options/accounts','/api/trade/accounts');T.accounts=(d.data||[]).filter(a=>a.status!=='inactive');tpPickAccount()}
+  catch(e){T.accounts=[];T.acct=null;tpSay('Could not connect: '+esc(e.message),'err');tpRenderAcct()}}
+function tpPickAccount(){
+  const want=tpType();const a=T.accounts.find(x=>x.account_type===want);
+  if(T.ws){try{T.ws.close()}catch(_){}T.ws=null}
+  T.acct=a||null;tpRenderAcct();
+  tpSay(a?`Connected to your ${want} account.`:`No active ${want} Options account found on this token.`,a?'muted':'err')}
+function tpDisconnect(){tpStop();T.token='';tpTok.value='';T.accounts=[];T.acct=null;if(T.ws){try{T.ws.close()}catch(_){}T.ws=null}tpRenderAcct();tpSay('Disconnected; token cleared from memory.')}
+function tpRenderAcct(){const a=T.acct;tpAcct.innerHTML=a?`<span class="badge ${a.account_type}">${a.account_type.toUpperCase()}</span> &nbsp;${esc(a.account_id)} · balance <b>${Number(a.balance).toFixed(2)} ${esc(a.currency)}</b> · today P/L <b class="${dayPL()>=0?'won':'lost'}">${dayPL().toFixed(2)}</b>`:'Not connected.'}
+// daily P/L per account, kept in this browser
+function dayKey(){return `dsl:pl:${T.acct?T.acct.account_id:'-'}:${new Date().toISOString().slice(0,10)}`}
+function dayPL(){try{return Number(localStorage.getItem(dayKey())||0)}catch(_){return 0}}
+function addDayPL(v){try{localStorage.setItem(dayKey(),String(dayPL()+v))}catch(_){}}
+// authenticated trading websocket
+async function ensureWs(){
+  if(T.ws&&T.ws.readyState===1)return;
+  const d=await derivRest('POST',`/trading/v1/options/accounts/${encodeURIComponent(T.acct.account_id)}/otp`,'/api/trade/otp',T.acct.account_id);
+  const url=d.data&&d.data.url;if(!url)throw Error('Deriv did not return a trading connection URL');
+  await new Promise((res,rej)=>{const ws=new WebSocket(url);let ok=false;
+    ws.onopen=()=>{ok=true;T.ws=ws;res()};ws.onerror=()=>{if(!ok)rej(Error('Trading connection failed'))};
+    ws.onclose=()=>{if(T.ws===ws)T.ws=null;for(const [,p] of T.pending)p.rej(Error('Trading connection closed'));T.pending.clear()};
+    ws.onmessage=ev=>{const m=JSON.parse(ev.data);
+      if(m.msg_type==='proposal_open_contract'&&m.proposal_open_contract){const c=m.proposal_open_contract,cb=T.watch.get(c.contract_id);if(cb)cb(c,m)}
+      const p=T.pending.get(m.req_id);if(p){T.pending.delete(m.req_id);m.error?p.rej(Error(m.error.message||m.error.code)):p.res(m)}}})}
+function wsSend(req,timeout=20000){return new Promise((res,rej)=>{const id=T.reqId++;T.pending.set(id,{res,rej});T.ws.send(JSON.stringify({...req,req_id:id}));setTimeout(()=>{if(T.pending.has(id)){T.pending.delete(id);rej(Error('Deriv did not respond in time'))}},timeout)})}
+// choose markets and digits from freshly recalculated predictions
+async function freshPredictions(N,onlyMatch){
+  const synth=symbols.filter(m=>m.market==='synthetic_index');
+  const rank=synth.map(m=>({m,r:store.digits[m.symbol]})).sort((a,b)=>((b.r&&!b.r.error&&b.r.edge)||-1)-((a.r&&!a.r.error&&a.r.edge)||-1));
+  const ask=rank.slice(0,Math.min(12,Math.max(N+3,onlyMatch?12:N))).map(x=>x.m.symbol);
+  if(!ask.length)throw Error('Market list not loaded yet');
+  const r=await fetch(`/api/digit-board?count=${sample.value}&symbols=${encodeURIComponent(ask.join(','))}`),d=await r.json();
+  if(!r.ok)throw Error(d.detail||'Could not refresh predictions');
+  for(let i=0;i<(d.deriv_calls||0);i++)sent.push(Date.now());
+  const rows=[];const now=Date.now();
+  for(const row of d.markets||[]){
+    if(!row.deferred&&!row.error){store.digits[row.symbol]={...row,_at:now};rows.push(row)}
+    else{const old=store.digits[row.symbol];if(old&&!old.error&&old.probabilities&&now-old._at<180000)rows.push(old)}}
+  if(d.rate_limited)pausedUntil=Math.max(pausedUntil,now+60000);
+  render();
+  return rows.filter(x=>x.probabilities&&(!onlyMatch||x.opportunity)).sort((a,b)=>(b.edge||0)-(a.edge||0)).slice(0,N)}
+function buyOne(row,stake,ticks){
+  const t={time:new Date(),symbol:row.symbol,name:row.name||row.symbol,digit:row.recommended_digit,stake,status:'buying',payout:null,profit:null};
+  T.trades.unshift(t);tpRender();
+  return (async()=>{
+    try{
+      const m=await wsSend({buy:1,price:stake,parameters:{amount:stake,basis:'stake',contract_type:'DIGITMATCH',currency:T.acct.currency,duration:ticks,duration_unit:'t',underlying_symbol:row.symbol,barrier:String(row.recommended_digit)}});
+      const b=m.buy;t.id=b.contract_id;t.payout=b.payout;t.stake=b.buy_price;t.status='open';T.acct.balance=b.balance_after;tpRender();tpRenderAcct();
+      await new Promise(done=>{
+        const fin=(c,msg)=>{if(!(c.is_sold||c.status==='won'||c.status==='lost'))return;
+          T.watch.delete(t.id);t.profit=Number(c.profit);t.status=c.status==='won'||t.profit>0?'won':'lost';
+          T.sess.n++;t.status==='won'?T.sess.won++:T.sess.lost++;T.sess.pl+=t.profit;addDayPL(t.profit);
+          if(msg.subscription&&msg.subscription.id)wsSend({forget:msg.subscription.id}).catch(()=>{});done()};
+        T.watch.set(t.id,fin);
+        wsSend({proposal_open_contract:1,contract_id:t.id,subscribe:1}).catch(()=>{});
+        setTimeout(()=>{if(T.watch.has(t.id)){T.watch.delete(t.id);t.status='unconfirmed';done()}},30000+ticks*3000)})}
+    catch(e){t.status='failed';t.error=e.message}
+    finally{tpRender();tpRenderAcct()}})()}
+async function tpRound(N,stake,ticks,onlyMatch,lossLimit){
+  if(dayPL()-N*stake< -lossLimit)return tpSay(`Stopped: another ${N} × ${stake} round could take today's loss past your ${lossLimit} limit.`,'err'),'stop';
+  tpSay('Recalculating predictions for the top markets…');
+  const rows=await freshPredictions(N,onlyMatch);
+  if(!rows.length){tpSay(onlyMatch?'No market is MATCH-flagged right now — skipped this round.':'No predictions available — skipped this round.','warn');return 'skip'}
+  await ensureWs();
+  tpSay(`Buying ${rows.length} Matches contract${rows.length>1?'s':''} at the same time…`);
+  await Promise.all(rows.map(r=>buyOne(r,stake,ticks)));
+  return 'ok'}
+async function tpStart(){
+  if(T.running)return;
+  if(!T.acct){tpSay('Connect your Deriv account first.','err');return}
+  const N=+tpN.value,stake=Math.round(+tpStake.value*100)/100,ticks=+tpTicks.value,rounds=+tpRounds.value,gap=Math.max(3,+tpGap.value||5),maxStake=+tpMax.value,lossLimit=+tpLoss.value,onlyMatch=tpOnly.value==='match';
+  if(!(stake>0))return tpSay('Enter a stake.','err');
+  if(stake>maxStake)return tpSay(`Stake ${stake} is above your max stake per trade (${maxStake}).`,'err');
+  if(!(lossLimit>0))return tpSay('Set a daily loss limit.','err');
+  if(T.acct.account_type==='real'){
+    if(!tpAck.checked)return tpSay('Tick the real-money acknowledgement first.','err');
+    if(!confirm(`REAL MONEY\n\n${rounds} round(s) × up to ${N} trades × ${stake} ${T.acct.currency}\nUp to ${(rounds*N*stake).toFixed(2)} ${T.acct.currency} at risk (stops at your daily loss limit of ${lossLimit}).\n\nPlace these trades?`))return}
+  T.running=true;T.stop=false;tpGo.disabled=true;
+  try{
+    for(let i=0;i<rounds&&!T.stop;i++){
+      const res=await tpRound(N,stake,ticks,onlyMatch,lossLimit);
+      if(res==='stop')break;
+      if(i<rounds-1&&!T.stop){for(let s=gap;s>0&&!T.stop;s--){tpSay(`Round ${i+1}/${rounds} done · next round in ${s}s`);await sleep(1000)}}}
+    if(!/err/.test(tpMsg.className))tpSay(T.stop?'Stopped.':'Finished.')
+  }catch(e){tpSay('Trading error: '+esc(e.message),'err')}
+  finally{T.running=false;tpGo.disabled=false;tpRender();tpRenderAcct()}}
+function tpStop(){T.stop=true;if(T.running)tpSay('Stopping after the trades already placed settle…')}
+function tpRender(){
+  const s=T.sess,cur=T.acct?T.acct.currency:'';
+  tpSum.innerHTML=`<div class="metric">Trades this session<br><b>${s.n}</b></div><div class="metric">Won / Lost<br><b>${s.won} / ${s.lost}</b></div><div class="metric">Session P/L<br><b class="${s.pl>=0?'won':'lost'}">${s.pl.toFixed(2)} ${esc(cur)}</b></div><div class="metric">Win rate<br><b>${s.n?(s.won/s.n*100).toFixed(1)+'%':'—'}</b></div>`;
+  tpRows.innerHTML=T.trades.slice(0,60).map(t=>`<tr><td>${t.time.toLocaleTimeString()}</td><td>${esc(t.name)}<div class="market">${esc(t.symbol)}</div></td><td><b>${t.digit}</b></td><td>${Number(t.stake).toFixed(2)}</td><td>${t.payout!=null?Number(t.payout).toFixed(2):'—'}</td><td class="${t.status==='won'?'won':t.status==='lost'||t.status==='failed'?'lost':''}">${esc(t.status)}${t.error?`<div class="market">${esc(t.error)}</div>`:''}</td><td class="${(t.profit||0)>=0?'won':'lost'}">${t.profit!=null?t.profit.toFixed(2):'—'}</td></tr>`).join('')}
+setTabs();tpRender();
 </script></body></html>
